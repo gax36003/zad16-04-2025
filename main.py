@@ -11,45 +11,45 @@ import io
 from PIL import ImageTk, Image
 
 def fetch_nasa_images(qeury):
-    #link z którego są pobierane dane
+    #link from which data is downloaded
     url = "https://images-api.nasa.gov/search";
 
-    #parametry
+    #parameters
     params_q = {
         'q': qeury
     };
 
-    #popierz dane
+    #intallize the data
     response = requests.get(url, params=params_q);
 
-    #sprawdź czy pobranie danych działa
+    #check if data downloading the data was accomplished with success
     if response.status_code == 200:
         return response.json()
     else:
         raise Exception(f'nie udalo sie poprac danych, kod błedu {response.status_code}')
 
 
-#applikacja
+#application class
 class Application(Frame):
-    #utworzenie zmiennej
+    #bool variable of the main loop
     running = True;
     #the main window
     window = 0;
     Manager = 0;
     #width and height of the main window
     WIDTH, HEIGHT = 0, 0;
-
+    #images and titles taken from url
     chosenItems = [];
 
-    #inicjalizacja klasy
+    #initialize class
     def __init__(self, width, height):
         self.WIDTH, self.HEIGHT = width, height;
-
+        #initialize python
         pygame.init();
         pygame.font.init();
         comicSans = pygame.font.SysFont('Comic Sans MS', 30);
 
-        #utwórz okno
+        #create the main window
         self.window = pygame.display.set_mode((self.WIDTH, self.HEIGHT));
         self.running = True;
 
@@ -60,7 +60,7 @@ class Application(Frame):
         textInput = pygame_gui.elements.UITextEntryLine(relative_rect=pygame.Rect((550,0), (400, 50)), manager=self.Manager, 
                                                         object_id = "#query")
 
-        #Główna pętla
+        #main loop
         while self.running:
             UI_REFRESH_RATE = pygame.time.Clock().tick(60)/1000;
             #events
@@ -79,7 +79,6 @@ class Application(Frame):
             for image in self.chosenItems:
                 image[3].set_image(image[0]);
 
-
             self.window.blit(textSurface, (400, 0));
 
             self.Manager.draw_ui(self.window);
@@ -90,8 +89,6 @@ class Application(Frame):
     
 
     def Search(self, text):
-        #utwórz następne okno
-        
         try:
             data = fetch_nasa_images(text);
             # print(data)
@@ -102,44 +99,42 @@ class Application(Frame):
                 print("Brak wyników wyszukiwania");
                 return # slowko skoku, ktore konczy dzialanie metody/funkcji
 
-            #utwórz zmienne kolumny i wierszy dla obrazów
-            r = 0;
-            c = 0;
+            #Create variable of row index and collumn index
+            r_index = 0;
+            c_index = 0;
             print("="*40)
-
+            #index variable
             i = 0;
-            #pętla która wyszukiwuje czy są obrazy
+            #the loop searches for images and displayes them
             for item in items[:5]:
                 i+=1;
-                #sprawdź czy to następny wiersz
-                if(c >= 3):
-                    r +=1;
-                    c = 0;
-                x, y = c*220, 200 + r*220;
+                #check if it's time to increase the row index by one
+                if(c_index >= 3):
+                    r_index +=1;
+                    c_index = 0;
+                x, y = c_index*220, 200 + r_index*220;
 
                 item_data = item.get('data',[]);
 
-                #utwórz zmienne obrazów i tytółu elementu
+                #create virables of images and title
                 photo = '';
                 small_photo = '';
-                t = '';
+                title = '';
 
-                #sprawdź czy 'data' istnieje
+                #check if 'data' exists
                 if item_data:
                     title = item_data[0].get('title', "brak tytulu");
-                    t = title;
                     
                 links = item.get('links', [])
                 if links:
                     href = links[0].get('href', 'brak linku');
                     pil_image = requests.get(href).content;
                     
-                    #większa i mniejsza wersja obrazu
-                    
+                    #original and smaller version of the image
                     photo = io.BytesIO(pil_image);
                     small_photo = pygame.image.load(photo);
                     
-                    #obraz jest zmniejszany gdy jest za duży
+                    #resize the small photo if it's too large
                     if(small_photo.size[0] > 200):
                         small_photo = pygame.transform.scale(small_photo, (200 ,small_photo.size[1]));
                     if(small_photo.size[1] > 200):
@@ -147,44 +142,44 @@ class Application(Frame):
                     #Create images as buttons
                     imageButton = pygame_gui.elements.UIButton(relative_rect=pygame.Rect((x,y),(200,200)), text="", manager=self.Manager, object_id=f"{len(self.chosenItems)}");
                     #put data to chosen items variable.
-                    img = (small_photo, photo, t, imageButton);
+                    img = (small_photo, pil_image, title, imageButton);
                     self.chosenItems.append(img)
-
-                    
+                    #show images while loading
                     self.window.blit(small_photo, (x, y));
 
-                    #wyświetla linki do obrazów
+                    #Print links to images in console
                     print(href);
                     print("-"*40)
-
+                #update UI manager to make sure images display while loading.
                 UI_REFRESH_RATE = pygame.time.Clock().tick(60)/1000;
                 self.Manager.update(UI_REFRESH_RATE);
                 pygame.display.update();
 
-                #zwiększ kolumnę o jeden
-                c+=1;
-            for item in self.chosenItems:
-                print(item[2]);
-
-        #gdy nastąpi bład wyświetla się w konsoli "Wystapil blad"
+                #increase a collumn index by one
+                c_index+=1;
+        #If there's an error it prints "Wystapil blad" in the console
         except Exception as e:
             print(f"Wystapil blad {e}");
     
-    #pokacują się obrazy na osobnym oknie.
+    #creates a new window with a full sized image
     def ApearImage(self, item):
         #Create a new window using Tkinter (Pygame doesn's allow having two windows)
         newWindow = Tk();
 
-        img = ImageTk.PhotoImage(Image.open(item[1]));
-
+        #convert image to make sure it works
+        img = ImageTk.PhotoImage(Image.open(io.BytesIO(item[1])));
+        #display image
         l_image = Label(newWindow, image=img);
         l_image.pack();
+        #display tile of the image
+        l_text = Label(newWindow, text=item[2]);
+        l_text.pack();
 
+        #main loop of the new window;
         newWindow.mainloop();      
 
 
 def main():
-    
     app = Application(1980, 1080);
 
 
